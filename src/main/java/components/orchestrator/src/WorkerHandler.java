@@ -42,6 +42,7 @@ public class WorkerHandler implements Runnable{
 
                 if (nextUrl != null) {
                     activeTasks.incrementAndGet();
+                    System.out.println("Mandando para o Worker processar: " + nextUrl);
                     out.println("PROCESS " + nextUrl);
 
                     String response = in.readLine();
@@ -66,9 +67,12 @@ public class WorkerHandler implements Runnable{
         String linksPart = response.substring(7).split(" FROM")[0];
         String[] foundLinks = linksPart.split(", ");
 
+        System.out.println("Worker encontrou links: " + String.join(", ", foundLinks));
+
         for (String link : foundLinks) {
             link = link.trim();
             if (!link.isEmpty() && visitedUrls.add(link)) {
+                System.out.println("Adicionando nova URL à fila: " + link);
                 urlQueue.add(link);
             }
         }
