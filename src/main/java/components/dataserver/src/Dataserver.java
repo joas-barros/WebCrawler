@@ -91,4 +91,96 @@ public class Dataserver {
             throw new UncheckedIOException(e);
         }
     }
+
+    // Protocolo
+    // Worker -> Servidor: GET /google.com HTTP/1.1
+    // Servidor -> Worker: LINKS: gmail.com, youtube.com, maps.com
+    private void workerHandleRequest(Socket clientSocket) {
+        try (
+                BufferedReader in  = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                PrintWriter    out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream()), true)
+        ) {
+            String request = in.readLine();
+            if (request == null || request.isBlank()) return;
+
+            System.out.println(Color.infoMessage("[DataServer] Requisição recebida: " + request));
+
+            String url = parseUrl(request);
+
+            if (url == null) {
+                out.println("ERROR: Requisição mal formatada. Use: GET /<url> HTTP/1.1");
+                System.out.println(Color.warningMessage("[DataServer] Requisição mal formatada: " + request));
+                return;
+            }
+
+            WebSite site = linksMapper.get(url);
+
+            if (site == null) {
+                out.println("NOT_FOUND: " + url);
+                System.out.println(Color.warningMessage("[DataServer] URL não encontrada: " + url));
+                return;
+            }
+
+            String linksJoined = String.join(", ", site.getLinks());
+            out.println("LINKS: " + linksJoined);
+
+            System.out.println(Color.successMessage(
+                    "[DataServer] Respondido " + url + " → " + site.getLinks().size() + " link(s)"));
+
+        } catch (IOException e) {
+            System.out.println(Color.errorMessage("[DataServer] Erro ao tratar Worker: " + e.getMessage()));
+        } finally {
+            try { clientSocket.close(); } catch (IOException ignored) {}
+        }
+    }
+
+    // GET /<url> HTTP/1.1
+    private String parseUrl(String request) {
+        String[] tokens = request.split(" ");
+        if (tokens.length < 2 || !tokens[0].equalsIgnoreCase("GET")) return null;
+
+        String path = tokens[1];
+        if (!path.startsWith("/")) return null;
+
+        // Remove a barra inicial
+        return path.substring(1).trim();
+    }
+
+    public void start(String csvFilePath) {
+        loadDataset(csvFilePath);
+
+        System.out.println(Color.title(
+                "[DataServer] Iniciando na porta " + port + "..."));
+
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+
+            System.out.println(Color.successMessage(
+                    "[DataServer] Pronto. Aguardando conexões na porta " + port + "..."));
+
+            // Aceita conexões indefinidamente
+            while (!serverSocket.isClosed()) {
+                try {
+                    Socket clientSocket = serverSocket.accept();
+                    System.out.println(Color.infoMessage(
+                            "[DataServer] Nova conexão: " + clientSocket.getInetAddress()));
+
+                    // Cada Worker recebe sua própria virtual thread
+                    executorService.submit(() -> workerHandleRequest(clientSocket));
+
+                } catch (SocketException e) {
+                    System.out.println(Color.warningMessage("[DataServer] Servidor encerrado."));
+                    break;
+                } catch (IOException e) {
+                    System.out.println(Color.errorMessage("[DataServer] Erro ao aceitar conexão: " + e.getMessage()));
+                }
+            }
+
+        } catch (IOException e) {
+            System.out.println(Color.errorMessage("[DataServer] Falha ao abrir porta " + port + ": " + e.getMessage()));
+            throw new UncheckedIOException(e);
+        } finally {
+            executorService.shutdown();
+            System.out.println(Color.infoMessage("[DataServer] ExecutorService encerrado."));
+        }
+    }
 }
