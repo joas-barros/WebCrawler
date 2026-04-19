@@ -9,6 +9,7 @@ public class Worker3App {
                 Ports.ORCHESTRATOR,
                 "localhost",
                 Ports.DATASERVER,
-                3);
+                3,
+                "Worker-3");
     }
 }

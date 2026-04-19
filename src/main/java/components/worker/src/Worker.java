@@ -15,16 +15,19 @@ public class Worker {
     private final int dataServerPort;
 
     private final int capacity;
+    private final String identification;
+
     private final ExecutorService threadPool;
 
     private static final int RETRY_DELAY_MS = 5000;
 
-    public Worker(String orchestratorHost, int orchestratorPort, String dataServerHost, int dataServerPort, int capacity) {
+    public Worker(String orchestratorHost, int orchestratorPort, String dataServerHost, int dataServerPort, int capacity, String identification) {
         this.orchestratorHost = orchestratorHost;
         this.orchestratorPort = orchestratorPort;
         this.dataServerHost = dataServerHost;
         this.dataServerPort = dataServerPort;
         this.capacity = capacity;
+        this.identification = identification;
         this.threadPool = Executors.newFixedThreadPool(capacity);
 
         run();
@@ -46,7 +49,7 @@ public class Worker {
                     if (command.startsWith("PROCESS ")) {
                         String urlToProcess = command.substring(8).trim();
 
-                        ProcessUrlTask task = new ProcessUrlTask(urlToProcess, dataServerHost, dataServerPort, out);
+                        ProcessUrlTask task = new ProcessUrlTask(urlToProcess, dataServerHost, dataServerPort, out, identification);
                         threadPool.submit(task);
                     } else {
                         System.out.println(Color.warningMessage("[Worker] Comando desconhecido recebido: " + command));

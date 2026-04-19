@@ -15,12 +15,14 @@ public class ProcessUrlTask implements Runnable{
     private final String dataServerHost;
     private final int dataServerPort;
     private final PrintWriter orchestratorOut;
+    private final String identification;
 
-    public ProcessUrlTask(String url, String dataServerHost, int dataServerPort, PrintWriter orchestratorOut) {
+    public ProcessUrlTask(String url, String dataServerHost, int dataServerPort, PrintWriter orchestratorOut, String identification) {
         this.url = url;
         this.dataServerHost = dataServerHost;
         this.dataServerPort = dataServerPort;
         this.orchestratorOut = orchestratorOut;
+        this.identification = identification;
     }
 
     @Override
@@ -31,7 +33,7 @@ public class ProcessUrlTask implements Runnable{
              BufferedReader in = new BufferedReader(new InputStreamReader(dataServerSocket.getInputStream()));
              PrintWriter out = new PrintWriter(new OutputStreamWriter(dataServerSocket.getOutputStream()), true)) {
 
-            String outputMessage = "GET /" + url + " HTTP/1.1";
+            String outputMessage = "GET /" + identification + "/" + url + " HTTP/1.1";
             System.out.println(Color.infoMessage("[WorkerTask] Enviando requisição para DataServer: " + outputMessage));
 
             out.println(outputMessage);
@@ -47,7 +49,7 @@ public class ProcessUrlTask implements Runnable{
                 List<String> validLinks = validateLinks(linksRaw);
 
                 String linksJoined = String.join(", ", validLinks);
-                String resultMessage = "FOUND: " + linksJoined + " FROM " + url;
+                String resultMessage = identification + " FOUND: " + linksJoined + " FROM " + url;
 
                 // O bloco synchronized garante que duas threads não embaralhem as mensagens no mesmo socket
                 synchronized (orchestratorOut) {
@@ -60,7 +62,7 @@ public class ProcessUrlTask implements Runnable{
                 System.out.println(Color.errorMessage("[WorkerTask] Erro 404, URL não existe no banco: " + url));
                 synchronized (orchestratorOut) {
                     // Manda um comando diferente avisando que falhou!
-                    orchestratorOut.println("FAILED: " + url);
+                    orchestratorOut.println(identification + " FAILED: " + url);
                 }
             } else {
                 System.out.println(Color.errorMessage("[WorkerTask] Resposta inesperada do DataServer para URL " + url + ": " + response));

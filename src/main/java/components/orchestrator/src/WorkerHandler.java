@@ -62,14 +62,16 @@ public class WorkerHandler implements Runnable{
             // readLine() bloqueia até o Worker enviar uma resposta
             while (orchestrator.isRunning() && (response = in.readLine()) != null) {
 
-                if (response.startsWith("FOUND:")) {
+                if (response.contains("FOUND:")) {
                     processWorkerResponse(response);
                     orchestrator.incrementSuccessCount();
                     activeTasks.decrementAndGet();
-                } else if (response.startsWith("FAILED:")) {
+                } else if (response.contains("FAILED:")) {
 
-                    String failedUrl = response.substring(8).trim();
-                    System.out.println(Color.errorMessage("[ORCH] Worker falhou ao processar URL: ") + failedUrl);
+                    String [] parts = response.split(" ");
+                    String id = parts[0];
+                    String failedUrl = parts[2];
+                    System.out.println(Color.errorMessage("[ORCH] " + id + " falhou ao processar URL: ") + failedUrl);
                     activeTasks.decrementAndGet();
 
                 } else {
@@ -89,18 +91,23 @@ public class WorkerHandler implements Runnable{
     }
 
     private void processWorkerResponse(String response) {
-        String linksPart = response.substring(7).split(" FROM")[0];
-        String[] foundLinks = linksPart.split(", ");
+        String[] parts = response.split("FOUND:");
+        if (parts.length < 2) {
+            System.out.println(Color.warningMessage("[ORCH] Resposta mal formatada do Worker: ") + response);
+            return;
+        }
 
-        System.out.println(Color.infoMessage("[ORCH] Worker encontrou links: ") + String.join(", ", foundLinks));
+        String linksPart = parts[1].split("FROM")[0].trim();
+        String[] foundLinks = linksPart.split(",");
+        String id = response.split(" ")[0];
+
+        System.out.println(Color.highlight("[ORCH] " + id + " encontrou links: ") + String.join(", ", foundLinks));
 
         for (String link : foundLinks) {
             link = link.trim();
             if (!link.isEmpty() && visitedUrls.add(link)) {
                 System.out.println(Color.successMessage("[ORCH] Adicionando nova URL à fila: ") + link);
                 urlQueue.add(link);
-            } else {
-                System.out.println(Color.warningMessage("[ORCH] URL já visitada ou inválida: ") + link);
             }
         }
     }
