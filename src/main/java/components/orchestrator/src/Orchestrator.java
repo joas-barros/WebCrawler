@@ -20,6 +20,7 @@ public class Orchestrator {
 
     private volatile boolean isRunning = true;
     private ServerSocket serverSocket;
+    private long startTime;
 
     private final ExecutorService workerPool = Executors.newVirtualThreadPerTaskExecutor();
 
@@ -45,6 +46,7 @@ public class Orchestrator {
     public void run() {
         System.out.println(Color.infoMessage("[ORCH] Coordenador iniciado na porta " + port));
         initSeeds();
+        this.startTime = System.currentTimeMillis();
 
         try {
             serverSocket = new ServerSocket(port);
@@ -90,10 +92,17 @@ public class Orchestrator {
     }
 
     private void executeShutdownRoutine() {
+
+        long endTime = System.currentTimeMillis();
+        long durationMs = endTime - this.startTime;
+        double durationSec = durationMs / 1000.0;
+
         System.out.println(Color.header("\n--- Iniciando desligamento do Orquestrador ---"));
         workerPool.shutdownNow(); // Interrompe todas as threads dos Workers
 
         System.out.println(Color.highlight("[ORCH] Total de URLs únicas processadas: ") + visitedUrls.size());
+
+        System.out.println(Color.highlight("[ORCH] Tempo total de processamento: ") + durationSec + " segundos (" + durationMs + " ms).");
 
         // TODO: analise do processamento
 
