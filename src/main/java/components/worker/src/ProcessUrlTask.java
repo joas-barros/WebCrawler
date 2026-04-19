@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 public class ProcessUrlTask implements Runnable{
@@ -33,6 +34,9 @@ public class ProcessUrlTask implements Runnable{
             String response = in.readLine();
 
             if (response != null && response.startsWith("LINKS: ")) {
+
+                simulateCpuBoundWork();
+
                 String linksRaw = response.substring(7);
 
                 List<String> validLinks = validateLinks(linksRaw);
@@ -54,6 +58,20 @@ public class ProcessUrlTask implements Runnable{
             }
         } catch (IOException e) {
             System.err.println("[WorkerTask] Erro ao conectar com DataServer para URL " + url + ": " + e.getMessage());
+        }
+    }
+
+    private void simulateCpuBoundWork() {
+        try {
+            // Gera um número aleatório entre 2000 (inclusivo) e 5001 (exclusivo)
+            long sleepTime = ThreadLocalRandom.current().nextLong(2000, 5001);
+            System.out.println("[WorkerTask] Processando conteudo da página");
+
+            Thread.sleep(sleepTime);
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("[WorkerTask] Processamento CPU Bound interrompido para " + url);
         }
     }
 
