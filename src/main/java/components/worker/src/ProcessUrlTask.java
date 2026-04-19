@@ -1,5 +1,7 @@
 package components.worker.src;
 
+import utils.Color;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.Arrays;
@@ -23,13 +25,16 @@ public class ProcessUrlTask implements Runnable{
 
     @Override
     public void run() {
-        System.out.println("[WorkerTask] Iniciando processamento da URL: " + url);
+        System.out.println(Color.infoMessage("[WorkerTask] Iniciando processamento da URL: " + url));
 
         try (Socket dataServerSocket = new Socket(dataServerHost, dataServerPort);
              BufferedReader in = new BufferedReader(new InputStreamReader(dataServerSocket.getInputStream()));
              PrintWriter out = new PrintWriter(new OutputStreamWriter(dataServerSocket.getOutputStream()), true)) {
 
-            out.println("GET /" + url + " HTTP/1.1");
+            String outputMessage = "GET /" + url + " HTTP/1.1";
+            System.out.println(Color.infoMessage("[WorkerTask] Enviando requisição para DataServer: " + outputMessage));
+
+            out.println(outputMessage);
 
             String response = in.readLine();
 
@@ -46,13 +51,14 @@ public class ProcessUrlTask implements Runnable{
 
                 // O bloco synchronized garante que duas threads não embaralhem as mensagens no mesmo socket
                 synchronized (orchestratorOut) {
+                    System.out.println(Color.infoMessage("[WorkerTask] Enviando resultado para Orquestrador: " + resultMessage));
                     orchestratorOut.println(resultMessage);
                 }
 
-                System.out.println("[WorkerTask] Sucesso: " + url + " -> " + validLinks.size() + " link(s) validados.");
+                System.out.println(Color.successMessage("[WorkerTask] Sucesso: " + url + " -> " + validLinks.size() + " link(s) validados."));
             } else {
-                System.out.println("[WorkerTask] Beco sem saída ou erro na URL: " + url);
                 synchronized (orchestratorOut) {
+                    System.out.println(Color.warningMessage("[WorkerTask] Beco sem saída ou erro na URL: " + url));
                     orchestratorOut.println("FOUND:  FROM " + url); // Retorna vazio para a fila andar
                 }
             }
@@ -65,13 +71,13 @@ public class ProcessUrlTask implements Runnable{
         try {
             // Gera um número aleatório entre 2000 (inclusivo) e 5001 (exclusivo)
             long sleepTime = ThreadLocalRandom.current().nextLong(2000, 5001);
-            System.out.println("[WorkerTask] Processando conteudo da página");
+            System.out.println(Color.infoMessage("[WorkerTask] Processando conteudo da página"));
 
             Thread.sleep(sleepTime);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.err.println("[WorkerTask] Processamento CPU Bound interrompido para " + url);
+            System.err.println(Color.errorMessage("[WorkerTask] Processamento CPU Bound interrompido para " + url));
         }
     }
 

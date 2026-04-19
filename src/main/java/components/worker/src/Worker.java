@@ -1,5 +1,7 @@
 package components.worker.src;
 
+import utils.Color;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
@@ -29,14 +31,14 @@ public class Worker {
     }
 
     public void run() {
-        System.out.println("[Worker] Iniciando com capacidade para " + capacity + " tarefas simultâneas.");
+        System.out.println(Color.header("[Worker] Iniciando com capacidade para " + capacity + " tarefas simultâneas."));
 
         while (true) {
             try (Socket orchestratorSocket = new Socket(orchestratorHost, orchestratorPort);
                  BufferedReader in = new BufferedReader(new InputStreamReader(orchestratorSocket.getInputStream()));
                  PrintWriter out = new PrintWriter(new OutputStreamWriter(orchestratorSocket.getOutputStream()), true)) {
 
-                System.out.println("[Worker] Sucesso! Conectado ao Orquestrador na porta " + orchestratorPort);
+                System.out.println(Color.successMessage("[Worker] Sucesso! Conectado ao Orquestrador na porta ") + orchestratorPort);
 
                 String command;
 
@@ -46,6 +48,8 @@ public class Worker {
 
                         ProcessUrlTask task = new ProcessUrlTask(urlToProcess, dataServerHost, dataServerPort, out);
                         threadPool.submit(task);
+                    } else {
+                        System.out.println(Color.warningMessage("[Worker] Comando desconhecido recebido: " + command));
                     }
                 }
 
@@ -54,21 +58,21 @@ public class Worker {
 
             } catch (IOException e) {
                 // Cai aqui se o Orquestrador não estiver online ou se a conexão cair no meio do caminho
-                System.err.println("[Worker] Falha ao comunicar com o Orquestrador: " + e.getMessage());
-                System.out.println("[Worker] Tentando reconectar em " + (RETRY_DELAY_MS / 1000) + " segundos...");
+                System.out.println(Color.errorMessage("[Worker] Falha ao comunicar com o Orquestrador: " + e.getMessage()));
+                System.out.println(Color.warningMessage("[Worker] Tentando reconectar em " + (RETRY_DELAY_MS / 1000) + " segundos..."));
 
                 try {
                     Thread.sleep(RETRY_DELAY_MS);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    System.out.println("[Worker] Processo de retry interrompido.");
+                    System.out.println(Color.errorMessage("[Worker] Processo de retry interrompido."));
                     break;
                 }
             }
         }
 
         threadPool.shutdown();
-        System.out.println("[Worker] Operação encerrada completamente.");
+        System.out.println(Color.successMessage("[Worker] Operação encerrada completamente."));
     }
 
 }
