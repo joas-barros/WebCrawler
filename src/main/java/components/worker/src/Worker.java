@@ -15,6 +15,8 @@ public class Worker {
     private final int capacity;
     private final ExecutorService threadPool;
 
+    private static final int RETRY_DELAY_MS = 5000;
+
     public Worker(String orchestratorHost, int orchestratorPort, String dataServerHost, int dataServerPort, int capacity) {
         this.orchestratorHost = orchestratorHost;
         this.orchestratorPort = orchestratorPort;
@@ -29,31 +31,44 @@ public class Worker {
     public void run() {
         System.out.println("[Worker] Iniciando com capacidade para " + capacity + " tarefas simultâneas.");
 
-        try (Socket orchestratorSocket = new Socket(orchestratorHost, orchestratorPort);
-             BufferedReader in = new BufferedReader(new InputStreamReader(orchestratorSocket.getInputStream()));
-             PrintWriter out = new PrintWriter(new OutputStreamWriter(orchestratorSocket.getOutputStream()), true)) {
+        while (true) {
+            try (Socket orchestratorSocket = new Socket(orchestratorHost, orchestratorPort);
+                 BufferedReader in = new BufferedReader(new InputStreamReader(orchestratorSocket.getInputStream()));
+                 PrintWriter out = new PrintWriter(new OutputStreamWriter(orchestratorSocket.getOutputStream()), true)) {
 
-            System.out.println("[Worker] Conectado ao Orquestrador na porta " + orchestratorPort);
+                System.out.println("[Worker] Sucesso! Conectado ao Orquestrador na porta " + orchestratorPort);
 
-            String command;
+                String command;
 
-            // Loop principal: Fica aguardando comandos do Orquestrador
-            while ((command = in.readLine()) != null) {
+                while ((command = in.readLine()) != null) {
+                    if (command.startsWith("PROCESS ")) {
+                        String urlToProcess = command.substring(8).trim();
 
-                if (command.startsWith("PROCESS ")) {
-                    String urlToProcess = command.substring(8).trim();
+                        ProcessUrlTask task = new ProcessUrlTask(urlToProcess, dataServerHost, dataServerPort, out);
+                        threadPool.submit(task);
+                    }
+                }
 
-                    // Delega a tarefa para uma thread do Pool
-                    ProcessUrlTask task = new ProcessUrlTask(urlToProcess, dataServerHost, dataServerPort, out);
-                    threadPool.submit(task);
+                System.out.println("[Worker] O Orquestrador encerrou a conexão de forma limpa. Finalizando o trabalho...");
+                break;
+
+            } catch (IOException e) {
+                // Cai aqui se o Orquestrador não estiver online ou se a conexão cair no meio do caminho
+                System.err.println("[Worker] Falha ao comunicar com o Orquestrador: " + e.getMessage());
+                System.out.println("[Worker] Tentando reconectar em " + (RETRY_DELAY_MS / 1000) + " segundos...");
+
+                try {
+                    Thread.sleep(RETRY_DELAY_MS);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    System.out.println("[Worker] Processo de retry interrompido.");
+                    break;
                 }
             }
-        } catch (IOException e) {
-            System.err.println("[Worker] Conexão com o Orquestrador perdida/encerrada: " + e.getMessage());
-        } finally {
-            threadPool.shutdown();
-            System.out.println("[Worker] Pool de threads encerrado.");
         }
+
+        threadPool.shutdown();
+        System.out.println("[Worker] Operação encerrada completamente.");
     }
 
 }
