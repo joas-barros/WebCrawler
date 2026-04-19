@@ -1,5 +1,7 @@
 package components.orchestrator.src;
 
+import utils.Color;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -41,7 +43,7 @@ public class Orchestrator {
     }
 
     public void run() {
-        System.out.println("Coordenador iniciado na porta " + port);
+        System.out.println(Color.infoMessage("[ORCH] Coordenador iniciado na porta " + port));
         initSeeds();
 
         try {
@@ -50,7 +52,7 @@ public class Orchestrator {
             while (isRunning) {
                 try {
                     Socket workerSocket = serverSocket.accept(); // Bloqueia aqui até chegar conexão
-                    System.out.println("Novo Worker conectado: " + workerSocket.getInetAddress());
+                    System.out.println(Color.successMessage("[ORCH] Novo Worker conectado: " + workerSocket.getInetAddress()));
 
                     WorkerHandler handler = new WorkerHandler(
                             workerSocket, urlQueue, visitedUrls, activeTasks, this
@@ -59,14 +61,14 @@ public class Orchestrator {
 
                 } catch (SocketException e) {
                     if (!isRunning) {
-                        System.out.println("ServerSocket destravado para encerramento.");
+                        System.out.println(Color.errorMessage("[ORCH] ServerSocket destravado para encerramento."));
                         break; // Sai do loop principal
                     }
                     throw e;
                 }
             }
         } catch (IOException e) {
-            System.err.println("Erro no servidor: " + e.getMessage());
+            System.err.println(Color.errorMessage("[ORCH] Erro no servidor: " + e.getMessage()));
         } finally {
             executeShutdownRoutine();
         }
@@ -75,7 +77,7 @@ public class Orchestrator {
     // Método que os Workers chamam para tentar encerrar o sistema
     public synchronized void tryShutdown() {
         if (isRunning && urlQueue.isEmpty() && activeTasks.get() == 0) {
-            System.out.println("\nCritério de parada atingido! Fila vazia e Workers ociosos.");
+            System.out.println(Color.successMessage("\n[ORCH] Critério de parada atingido! Fila vazia e Workers ociosos."));
             isRunning = false;
             try {
                 if (serverSocket != null && !serverSocket.isClosed()) {
@@ -88,14 +90,14 @@ public class Orchestrator {
     }
 
     private void executeShutdownRoutine() {
-        System.out.println("\n--- Iniciando desligamento do Orquestrador ---");
+        System.out.println(Color.header("\n--- Iniciando desligamento do Orquestrador ---"));
         workerPool.shutdownNow(); // Interrompe todas as threads dos Workers
 
-        System.out.println("Total de URLs únicas processadas: " + visitedUrls.size());
+        System.out.println(Color.highlight("[ORCH] Total de URLs únicas processadas: ") + visitedUrls.size());
 
         // TODO: analise do processamento
 
-        System.out.println("Processo finalizado com sucesso.");
+        System.out.println(Color.successMessage("[ORCH] Processo finalizado com sucesso."));
     }
 
     public boolean isRunning() {

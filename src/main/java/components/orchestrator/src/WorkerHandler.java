@@ -1,5 +1,7 @@
 package components.orchestrator.src;
 
+import utils.Color;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -45,12 +47,13 @@ public class WorkerHandler implements Runnable{
                         if (nextUrl != null) {
                             activeTasks.incrementAndGet(); // Marca que a tarefa foi enviada
                             out.println("PROCESS " + nextUrl);
+                            System.out.println(Color.infoMessage("[ORCH] Enviando tarefa para Worker: ") + nextUrl);
                         }
 
                         orchestrator.tryShutdown();
                     }
                 } catch (Exception e) {
-                    System.out.println("[Orchestrator] Thread escritora do Worker finalizada.");
+                    System.out.println(Color.errorMessage("[ORCH] Thread escritora do Worker finalizada."));
                 }
             });
 
@@ -71,7 +74,7 @@ public class WorkerHandler implements Runnable{
             writerThread.interrupt();
         } catch (IOException e) {
             if (orchestrator.isRunning()) {
-                System.out.println("Worker desconectado inesperadamente.");
+                System.out.println(Color.errorMessage("[ORCH] Worker desconectado inesperadamente."));
             }
         }
     }
@@ -80,13 +83,15 @@ public class WorkerHandler implements Runnable{
         String linksPart = response.substring(7).split(" FROM")[0];
         String[] foundLinks = linksPart.split(", ");
 
-        System.out.println("Worker encontrou links: " + String.join(", ", foundLinks));
+        System.out.println(Color.infoMessage("[ORCH] Worker encontrou links: ") + String.join(", ", foundLinks));
 
         for (String link : foundLinks) {
             link = link.trim();
             if (!link.isEmpty() && visitedUrls.add(link)) {
-                System.out.println("Adicionando nova URL à fila: " + link);
+                System.out.println(Color.successMessage("[ORCH] Adicionando nova URL à fila: ") + link);
                 urlQueue.add(link);
+            } else {
+                System.out.println(Color.warningMessage("[ORCH] URL já visitada ou inválida: ") + link);
             }
         }
     }
