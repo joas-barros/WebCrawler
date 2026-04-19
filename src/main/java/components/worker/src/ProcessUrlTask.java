@@ -56,14 +56,17 @@ public class ProcessUrlTask implements Runnable{
                 }
 
                 System.out.println(Color.successMessage("[WorkerTask] Sucesso: " + url + " -> " + validLinks.size() + " link(s) validados."));
-            } else {
+            } else if (response != null && response.startsWith("NOT_FOUND")) {
+                System.out.println(Color.errorMessage("[WorkerTask] Erro 404, URL não existe no banco: " + url));
                 synchronized (orchestratorOut) {
-                    System.out.println(Color.warningMessage("[WorkerTask] Beco sem saída ou erro na URL: " + url));
-                    orchestratorOut.println("FOUND:  FROM " + url); // Retorna vazio para a fila andar
+                    // Manda um comando diferente avisando que falhou!
+                    orchestratorOut.println("FAILED: " + url);
                 }
+            } else {
+                System.out.println(Color.errorMessage("[WorkerTask] Resposta inesperada do DataServer para URL " + url + ": " + response));
             }
         } catch (IOException e) {
-            System.err.println("[WorkerTask] Erro ao conectar com DataServer para URL " + url + ": " + e.getMessage());
+            System.out.println(Color.errorMessage("[WorkerTask] Erro ao conectar com DataServer para URL " + url + ": " + e.getMessage()));
         }
     }
 

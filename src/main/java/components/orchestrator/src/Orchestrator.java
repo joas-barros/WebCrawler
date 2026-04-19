@@ -16,7 +16,9 @@ public class Orchestrator {
 
     private final BlockingQueue<String> urlQueue = new LinkedBlockingQueue<>();
     private final Set<String> visitedUrls = ConcurrentHashMap.newKeySet();
+
     private final AtomicInteger activeTasks = new AtomicInteger(0);
+    private final AtomicInteger successfulPages = new AtomicInteger(0);
 
     private volatile boolean isRunning = true;
     private ServerSocket serverSocket;
@@ -41,6 +43,10 @@ public class Orchestrator {
         if (visitedUrls.add(url)) {
             urlQueue.offer(url);
         }
+    }
+
+    public void incrementSuccessCount() {
+        successfulPages.incrementAndGet();
     }
 
     public void run() {
@@ -98,11 +104,14 @@ public class Orchestrator {
         double durationSec = durationMs / 1000.0;
 
         System.out.println(Color.header("\n--- Iniciando desligamento do Orquestrador ---"));
-        workerPool.shutdownNow(); // Interrompe todas as threads dos Workers
+        workerPool.shutdownNow();
 
-        System.out.println(Color.highlight("[ORCH] Total de URLs únicas processadas: ") + visitedUrls.size());
-
+        System.out.println(Color.highlight("\n==========================================================================="));
+        System.out.println(Color.highlight("[ORCH] Total de URLs descobertas e tentadas: " + visitedUrls.size()));
+        System.out.println(Color.highlight("[ORCH] Total de páginas válidas indexadas: " + successfulPages.get()));
+        System.out.println(Color.highlight("[ORCH] Total de páginas quebradas (404): " + (visitedUrls.size() - successfulPages.get())));
         System.out.println(Color.highlight("[ORCH] Tempo total de processamento: ") + durationSec + " segundos (" + durationMs + " ms).");
+        System.out.println(Color.highlight("===========================================================================\n"));
 
         // TODO: analise do processamento
 

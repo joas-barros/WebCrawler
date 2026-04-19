@@ -64,7 +64,16 @@ public class WorkerHandler implements Runnable{
 
                 if (response.startsWith("FOUND:")) {
                     processWorkerResponse(response);
-                    activeTasks.decrementAndGet(); // Marca que a tarefa foi concluída
+                    orchestrator.incrementSuccessCount();
+                    activeTasks.decrementAndGet();
+                } else if (response.startsWith("FAILED:")) {
+
+                    String failedUrl = response.substring(8).trim();
+                    System.out.println(Color.errorMessage("[ORCH] Worker falhou ao processar URL: ") + failedUrl);
+                    activeTasks.decrementAndGet();
+
+                } else {
+                    System.out.println(Color.warningMessage("[ORCH] Resposta inesperada do Worker: ") + response);
                 }
 
                 orchestrator.tryShutdown();
