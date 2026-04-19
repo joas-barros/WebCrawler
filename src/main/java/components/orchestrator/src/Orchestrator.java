@@ -29,8 +29,9 @@ public class Orchestrator {
     private void initSeeds() {
         // Adicionar URLs iniciais (seeds) à fila
         addUrl("google.com");
-        addUrl("amazon.com");
         addUrl("wikipedia.org");
+        addUrl("github.com");
+        addUrl("stackoverflow.com");
     }
 
     private void addUrl(String url) {
