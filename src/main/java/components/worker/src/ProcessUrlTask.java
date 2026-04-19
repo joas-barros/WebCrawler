@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class ProcessUrlTask implements Runnable{
@@ -17,12 +18,15 @@ public class ProcessUrlTask implements Runnable{
     private final PrintWriter orchestratorOut;
     private final String identification;
 
-    public ProcessUrlTask(String url, String dataServerHost, int dataServerPort, PrintWriter orchestratorOut, String identification) {
+    private final AtomicInteger processedCounter;
+
+    public ProcessUrlTask(String url, String dataServerHost, int dataServerPort, PrintWriter orchestratorOut, String identification, AtomicInteger processedCounter) {
         this.url = url;
         this.dataServerHost = dataServerHost;
         this.dataServerPort = dataServerPort;
         this.orchestratorOut = orchestratorOut;
         this.identification = identification;
+        this.processedCounter = processedCounter;
     }
 
     @Override
@@ -69,6 +73,8 @@ public class ProcessUrlTask implements Runnable{
             }
         } catch (IOException e) {
             System.out.println(Color.errorMessage("[WorkerTask] Erro ao conectar com DataServer para URL " + url + ": " + e.getMessage()));
+        } finally {
+            int totalProcessed = processedCounter.incrementAndGet();
         }
     }
 

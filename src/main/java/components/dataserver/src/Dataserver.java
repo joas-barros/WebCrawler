@@ -126,6 +126,8 @@ public class Dataserver {
                 return;
             }
 
+            simulateNetworkLatency();
+
             String linksJoined = String.join(", ", site.getLinks());
             out.println("LINKS: " + linksJoined);
 
@@ -136,6 +138,15 @@ public class Dataserver {
             System.out.println(Color.errorMessage("[DataServer] Erro ao tratar Worker: " + e.getMessage()));
         } finally {
             try { clientSocket.close(); } catch (IOException ignored) {}
+        }
+    }
+
+    private void simulateNetworkLatency() {
+        try {
+            long latency = ThreadLocalRandom.current().nextLong(500, 2001);
+            Thread.sleep(latency);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

@@ -6,6 +6,8 @@ import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Worker {
 
@@ -18,6 +20,8 @@ public class Worker {
     private final String identification;
 
     private final ExecutorService threadPool;
+
+    private final AtomicInteger totalProcessedTasks = new AtomicInteger(0);
 
     private static final int RETRY_DELAY_MS = 5000;
 
@@ -49,7 +53,7 @@ public class Worker {
                     if (command.startsWith("PROCESS ")) {
                         String urlToProcess = command.substring(8).trim();
 
-                        ProcessUrlTask task = new ProcessUrlTask(urlToProcess, dataServerHost, dataServerPort, out, identification);
+                        ProcessUrlTask task = new ProcessUrlTask(urlToProcess, dataServerHost, dataServerPort, out, identification, totalProcessedTasks);
                         threadPool.submit(task);
                     } else {
                         System.out.println(Color.warningMessage("[Worker] Comando desconhecido recebido: " + command));
@@ -74,8 +78,23 @@ public class Worker {
             }
         }
 
+        // Proíbe novas tarefas
         threadPool.shutdown();
-        System.out.println(Color.successMessage("[Worker] Operação encerrada completamente."));
+
+        try {
+            // Aguarda até que as tarefas que já estavam rodando (no Thread.sleep) terminem.
+            // O Worker vai esperar até 1 minuto para as threads finalizarem pacificamente.
+            if (!threadPool.awaitTermination(60, TimeUnit.SECONDS)) {
+                threadPool.shutdownNow(); // Se demorar mais que 1 minuto, força a parada
+            }
+        } catch (InterruptedException e) {
+            threadPool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        System.out.println(Color.highlight("\n--- RELATÓRIO DO " + identification.toUpperCase() + " ---"));
+        System.out.println(Color.highlight("Total de URLs processadas: ") + totalProcessedTasks.get());
+        System.out.println(Color.successMessage("[" + identification + "] Operação encerrada completamente.\n"));
     }
 
 }
