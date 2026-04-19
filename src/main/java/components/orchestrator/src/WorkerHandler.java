@@ -36,27 +36,40 @@ public class WorkerHandler implements Runnable{
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true)
         ) {
-            while (orchestrator.isRunning()) {
+            // 1. Inicia a Thread ESCRITORA (Despacha tarefas)
+            Thread writerThread = Thread.ofVirtual().start(() -> {
+                try {
+                    while (orchestrator.isRunning() && !socket.isClosed()) {
+                        String nextUrl = urlQueue.poll(500, TimeUnit.MILLISECONDS);
 
-                String nextUrl = urlQueue.poll(500, TimeUnit.MILLISECONDS);
+                        if (nextUrl != null) {
+                            activeTasks.incrementAndGet(); // Marca que a tarefa foi enviada
+                            out.println("PROCESS " + nextUrl);
+                        }
 
-                if (nextUrl != null) {
-                    activeTasks.incrementAndGet();
-                    System.out.println("Mandando para o Worker processar: " + nextUrl);
-                    out.println("PROCESS " + nextUrl);
-
-                    String response = in.readLine();
-                    if (response != null && response.startsWith("FOUND:")) {
-                        processWorkerResponse(response);
+                        orchestrator.tryShutdown();
                     }
+                } catch (Exception e) {
+                    System.out.println("[Orchestrator] Thread escritora do Worker finalizada.");
+                }
+            });
 
-                    activeTasks.decrementAndGet();
+            // 2. A thread principal vira a LEITORA (Processa respostas)
+            String response;
+            // readLine() bloqueia até o Worker enviar uma resposta
+            while (orchestrator.isRunning() && (response = in.readLine()) != null) {
+
+                if (response.startsWith("FOUND:")) {
+                    processWorkerResponse(response);
+                    activeTasks.decrementAndGet(); // Marca que a tarefa foi concluída
                 }
 
-                // Sempre avisa o Orquestrador para verificar se já acabou
                 orchestrator.tryShutdown();
             }
-        } catch (IOException | InterruptedException e) {
+
+            // Se o loop de leitura quebrar (ex: worker desconectou), interrompemos a escrita
+            writerThread.interrupt();
+        } catch (IOException e) {
             if (orchestrator.isRunning()) {
                 System.out.println("Worker desconectado inesperadamente.");
             }
