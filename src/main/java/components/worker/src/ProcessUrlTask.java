@@ -53,7 +53,7 @@ public class ProcessUrlTask implements Runnable {
 
                 List<String> validLinks = validateLinks(site.getLinks());
 
-                String linksJoined = String.join(", ", validLinks);
+                String linksJoined = String.join(", ", validLinks).replaceAll("^\\[|\\]$", "");;
                 String resultMessage = identification + " FOUND: " + linksJoined + " FROM " + url;
 
                 synchronized (orchestratorOut) {
