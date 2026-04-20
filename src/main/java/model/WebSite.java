@@ -1,8 +1,11 @@
 package model;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class WebSite {
+public class WebSite implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private String url;
     private String contentHTML;
     private List<String> links;
