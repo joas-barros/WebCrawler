@@ -1,5 +1,7 @@
 package components.orchestrator.src;
 
+import utils.Color;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -36,43 +38,75 @@ public class WorkerHandler implements Runnable{
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true)
         ) {
-            while (orchestrator.isRunning()) {
+            // 1. Inicia a Thread ESCRITORA (Despacha tarefas)
+            Thread writerThread = Thread.ofVirtual().start(() -> {
+                try {
+                    while (orchestrator.isRunning() && !socket.isClosed()) {
+                        String nextUrl = urlQueue.poll(500, TimeUnit.MILLISECONDS);
 
-                String nextUrl = urlQueue.poll(500, TimeUnit.MILLISECONDS);
+                        if (nextUrl != null) {
+                            activeTasks.incrementAndGet(); // Marca que a tarefa foi enviada
+                            out.println("PROCESS " + nextUrl);
+                            System.out.println(Color.infoMessage("[ORCH] Enviando tarefa para Worker: ") + nextUrl);
+                        }
 
-                if (nextUrl != null) {
-                    activeTasks.incrementAndGet();
-                    System.out.println("Mandando para o Worker processar: " + nextUrl);
-                    out.println("PROCESS " + nextUrl);
-
-                    String response = in.readLine();
-                    if (response != null && response.startsWith("FOUND:")) {
-                        processWorkerResponse(response);
+                        orchestrator.tryShutdown();
                     }
+                } catch (Exception e) {
+                    System.out.println(Color.errorMessage("[ORCH] Thread escritora do Worker finalizada."));
+                }
+            });
 
+            // 2. A thread principal vira a LEITORA (Processa respostas)
+            String response;
+            // readLine() bloqueia até o Worker enviar uma resposta
+            while (orchestrator.isRunning() && (response = in.readLine()) != null) {
+
+                if (response.contains("FOUND:")) {
+                    processWorkerResponse(response);
+                    orchestrator.incrementSuccessCount();
                     activeTasks.decrementAndGet();
+                } else if (response.contains("FAILED:")) {
+
+                    String [] parts = response.split(" ");
+                    String id = parts[0];
+                    String failedUrl = parts[2];
+                    System.out.println(Color.errorMessage("[ORCH] " + id + " falhou ao processar URL: ") + failedUrl);
+                    activeTasks.decrementAndGet();
+
+                } else {
+                    System.out.println(Color.warningMessage("[ORCH] Resposta inesperada do Worker: ") + response);
                 }
 
-                // Sempre avisa o Orquestrador para verificar se já acabou
                 orchestrator.tryShutdown();
             }
-        } catch (IOException | InterruptedException e) {
+
+            // Se o loop de leitura quebrar (ex: worker desconectou), interrompemos a escrita
+            writerThread.interrupt();
+        } catch (IOException e) {
             if (orchestrator.isRunning()) {
-                System.out.println("Worker desconectado inesperadamente.");
+                System.out.println(Color.errorMessage("[ORCH] Worker desconectado inesperadamente."));
             }
         }
     }
 
     private void processWorkerResponse(String response) {
-        String linksPart = response.substring(7).split(" FROM")[0];
-        String[] foundLinks = linksPart.split(", ");
+        String[] parts = response.split("FOUND:");
+        if (parts.length < 2) {
+            System.out.println(Color.warningMessage("[ORCH] Resposta mal formatada do Worker: ") + response);
+            return;
+        }
 
-        System.out.println("Worker encontrou links: " + String.join(", ", foundLinks));
+        String linksPart = parts[1].split("FROM")[0].trim();
+        String[] foundLinks = linksPart.split(",");
+        String id = response.split(" ")[0];
+
+        System.out.println(Color.highlight("[ORCH] " + id + " encontrou links: ") + String.join(", ", foundLinks));
 
         for (String link : foundLinks) {
             link = link.trim();
             if (!link.isEmpty() && visitedUrls.add(link)) {
-                System.out.println("Adicionando nova URL à fila: " + link);
+                System.out.println(Color.successMessage("[ORCH] Adicionando nova URL à fila: ") + link);
                 urlQueue.add(link);
             }
         }

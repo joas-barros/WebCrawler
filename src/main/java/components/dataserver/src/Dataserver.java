@@ -105,13 +105,18 @@ public class Dataserver {
 
             System.out.println(Color.infoMessage("[DataServer] Requisição recebida: " + request));
 
-            String url = parseUrl(request);
+            String[] parsedData = parseUrl(request);
 
-            if (url == null) {
-                out.println("ERROR: Requisição mal formatada. Use: GET /<url> HTTP/1.1");
+            if (parsedData == null) {
+                out.println("ERROR: Requisição mal formatada. Use: GET /<id>/<url> HTTP/1.1");
                 System.out.println(Color.warningMessage("[DataServer] Requisição mal formatada: " + request));
                 return;
             }
+
+            String workerId = parsedData[0];
+            String url = parsedData[1];
+
+            System.out.println(Color.infoMessage("[DataServer] " + workerId + " solicitou a URL: " + url));
 
             WebSite site = linksMapper.get(url);
 
@@ -120,6 +125,8 @@ public class Dataserver {
                 System.out.println(Color.warningMessage("[DataServer] URL não encontrada: " + url));
                 return;
             }
+
+            simulateNetworkLatency();
 
             String linksJoined = String.join(", ", site.getLinks());
             out.println("LINKS: " + linksJoined);
@@ -134,16 +141,27 @@ public class Dataserver {
         }
     }
 
-    // GET /<url> HTTP/1.1
-    private String parseUrl(String request) {
+    private void simulateNetworkLatency() {
+        try {
+            long latency = ThreadLocalRandom.current().nextLong(500, 2001);
+            Thread.sleep(latency);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    // GET /<id>/<url> HTTP/1.1
+    private String[] parseUrl(String request) {
         String[] tokens = request.split(" ");
         if (tokens.length < 2 || !tokens[0].equalsIgnoreCase("GET")) return null;
 
         String path = tokens[1];
         if (!path.startsWith("/")) return null;
 
-        // Remove a barra inicial
-        return path.substring(1).trim();
+        String[] pathParts = path.substring(1).split("/", 2);
+        if (pathParts.length < 2) return null;
+
+        return new String[]{pathParts[0].trim(), pathParts[1].trim()};
     }
 
     public void start(String csvFilePath) {
