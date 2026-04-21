@@ -2,12 +2,15 @@ package components.worker.src;
 
 import model.WebSite;
 import utils.Color;
+import utils.Labels;
 
 import java.io.*;
 import java.net.Socket;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class ProcessUrlTask implements Runnable {
@@ -46,15 +49,33 @@ public class ProcessUrlTask implements Runnable {
             if (response instanceof WebSite) {
                 WebSite site = (WebSite) response;
 
-                String contentHTML = site.getContentHTML();
-                System.out.println(Color.infoMessage("[WorkerTask] Conteúdo HTML recebido! Tamanho: " + contentHTML.length() + " caracteres."));
+                String contentHtml = site.getContentHTML().toLowerCase();
+
+                Map<Labels, Predicate<String>> categoryRules = Map.of(
+                        Labels.TECNOLOGIA,    html -> html.contains("algoritmo") || html.contains("software") || html.contains("programacao"),
+                        Labels.ESPORTES,      html -> html.contains("futebol") || html.contains("campeonato") || html.contains("gol"),
+                        Labels.POLITICA,      html -> html.contains("governo") || html.contains("eleicao") || html.contains("presidente"),
+                        Labels.SAUDE,         html -> html.contains("medicina") || html.contains("vacina") || html.contains("hospital"),
+                        Labels.ENTRETENIMENTO,html -> html.contains("cinema") || html.contains("streaming") || html.contains("musica"),
+                        Labels.CIENCIA,       html -> html.contains("pesquisa") || html.contains("universo") || html.contains("genetica"),
+                        Labels.NEGOCIOS,      html -> html.contains("mercado") || html.contains("investimento") || html.contains("empresa")
+                );
+
+                String label = categoryRules.entrySet().stream()
+                        .filter(entry -> entry.getValue().test(contentHtml))
+                        .map(Map.Entry::getKey)
+                        .findFirst()
+                        .map(Enum::name)
+                        .orElse("OUTROS");
+
+                site.setLabel(Labels.valueOf(label));
 
                 simulateCpuBoundWork();
 
                 List<String> validLinks = validateLinks(site.getLinks());
+                String linksJoined = String.join(", ", validLinks).replaceAll("^\\[|\\]$", "");
 
-                String linksJoined = String.join(", ", validLinks).replaceAll("^\\[|\\]$", "");;
-                String resultMessage = identification + " FOUND: " + linksJoined + " FROM " + url;
+                String resultMessage = identification + " FOUND: " + linksJoined + " FROM " + url + "[" + label + "]";
 
                 synchronized (orchestratorOut) {
                     System.out.println(Color.infoMessage("[WorkerTask] Enviando resultado para Orquestrador: " + resultMessage));
