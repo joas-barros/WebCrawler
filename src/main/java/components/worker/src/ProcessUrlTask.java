@@ -21,14 +21,16 @@ public class ProcessUrlTask implements Runnable {
     private final PrintWriter orchestratorOut;
     private final String identification;
     private final AtomicInteger processedCounter;
+    private final Map<String, Labels> urlReport;
 
-    public ProcessUrlTask(String url, String dataServerHost, int dataServerPort, PrintWriter orchestratorOut, String identification, AtomicInteger processedCounter) {
+    public ProcessUrlTask(String url, String dataServerHost, int dataServerPort, PrintWriter orchestratorOut, String identification, AtomicInteger processedCounter, Map<String, Labels> urlReport) {
         this.url = url;
         this.dataServerHost = dataServerHost;
         this.dataServerPort = dataServerPort;
         this.orchestratorOut = orchestratorOut;
         this.identification = identification;
         this.processedCounter = processedCounter;
+        this.urlReport = urlReport;
     }
 
     @Override
@@ -61,14 +63,15 @@ public class ProcessUrlTask implements Runnable {
                         Labels.NEGOCIOS,      html -> html.contains("mercado") || html.contains("investimento") || html.contains("empresa")
                 );
 
-                String label = categoryRules.entrySet().stream()
+                Labels label = categoryRules.entrySet().stream()
                         .filter(entry -> entry.getValue().test(contentHtml))
                         .map(Map.Entry::getKey)
                         .findFirst()
-                        .map(Enum::name)
-                        .orElse("OUTROS");
+                        .orElse(Labels.OUTROS);
 
-                site.setLabel(Labels.valueOf(label));
+                site.setLabel(label);
+
+                urlReport.put(url, label);
 
                 simulateCpuBoundWork();
 
@@ -86,6 +89,7 @@ public class ProcessUrlTask implements Runnable {
 
             } else if ("NOT_FOUND".equals(response)) {
                 System.out.println(Color.errorMessage("[WorkerTask] Erro 404, URL não existe no banco: " + url));
+                urlReport.put(url, Labels.ERROR);
                 synchronized (orchestratorOut) {
                     orchestratorOut.println(identification + " FAILED: " + url);
                 }

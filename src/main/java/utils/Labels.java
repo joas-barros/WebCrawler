@@ -7,5 +7,7 @@ public enum Labels {
     SAUDE,
     ENTRETENIMENTO,
     CIENCIA,
-    NEGOCIOS;
+    NEGOCIOS,
+    OUTROS,
+    ERROR;
 }
