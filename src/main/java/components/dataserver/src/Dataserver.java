@@ -167,7 +167,7 @@ public class Dataserver {
     public void start(String csvFilePath) {
         loadDataset(csvFilePath);
 
-        System.out.println(Color.title(
+        System.out.println(Color.highlight(
                 "[DataServer] Iniciando na porta " + port + "..."));
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
