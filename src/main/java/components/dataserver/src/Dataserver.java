@@ -94,11 +94,11 @@ public class Dataserver {
 
     // Protocolo
     // Worker -> Servidor: GET /google.com HTTP/1.1
-    // Servidor -> Worker: LINKS: gmail.com, youtube.com, maps.com
+    // Servidor -> Worker: Objeto Website ou "NOT_FOUND"
     private void workerHandleRequest(Socket clientSocket) {
         try (
-                BufferedReader in  = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                PrintWriter    out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream()), true)
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream())
         ) {
             String request = in.readLine();
             if (request == null || request.isBlank()) return;
@@ -108,7 +108,7 @@ public class Dataserver {
             String[] parsedData = parseUrl(request);
 
             if (parsedData == null) {
-                out.println("ERROR: Requisição mal formatada. Use: GET /<id>/<url> HTTP/1.1");
+                out.writeObject("ERROR: Requisição mal formatada.");
                 System.out.println(Color.warningMessage("[DataServer] Requisição mal formatada: " + request));
                 return;
             }
@@ -121,18 +121,18 @@ public class Dataserver {
             WebSite site = linksMapper.get(url);
 
             if (site == null) {
-                out.println("NOT_FOUND: " + url);
+                out.writeObject("NOT_FOUND");
                 System.out.println(Color.warningMessage("[DataServer] URL não encontrada: " + url));
                 return;
             }
 
             simulateNetworkLatency();
 
-            String linksJoined = String.join(", ", site.getLinks());
-            out.println("LINKS: " + linksJoined);
+            out.writeObject(site);
+            out.flush();
 
             System.out.println(Color.successMessage(
-                    "[DataServer] Respondido " + url + " → " + site.getLinks().size() + " link(s)"));
+                    "[DataServer] Respondido " + url + " com objeto WebSite completo."));
 
         } catch (IOException e) {
             System.out.println(Color.errorMessage("[DataServer] Erro ao tratar Worker: " + e.getMessage()));
@@ -167,7 +167,7 @@ public class Dataserver {
     public void start(String csvFilePath) {
         loadDataset(csvFilePath);
 
-        System.out.println(Color.title(
+        System.out.println(Color.highlight(
                 "[DataServer] Iniciando na porta " + port + "..."));
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
@@ -175,7 +175,6 @@ public class Dataserver {
             System.out.println(Color.successMessage(
                     "[DataServer] Pronto. Aguardando conexões na porta " + port + "..."));
 
-            // Aceita conexões indefinidamente
             while (!serverSocket.isClosed()) {
                 try {
                     Socket clientSocket = serverSocket.accept();

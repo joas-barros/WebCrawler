@@ -5,11 +5,11 @@ import utils.Ports;
 
 public class Worker4App {
     static void main(String[] args) {
-        new Worker("localhost",
+        new Worker(Ports.ORCHESTRATOR_HOST,
                 Ports.ORCHESTRATOR,
-                "localhost",
+                Ports.DATASERVER_HOST,
                 Ports.DATASERVER,
                 2,
-                "Worker-4");
+                "Worker-1");
     }
 }
