@@ -10,6 +10,6 @@ public class Worker2App {
                 Ports.DATASERVER_HOST,
                 Ports.DATASERVER,
                 4,
-                "Worker-1");
+                "Worker-2");
     }
 }
