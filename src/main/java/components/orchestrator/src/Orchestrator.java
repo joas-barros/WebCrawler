@@ -16,6 +16,7 @@ public class Orchestrator {
 
     private final BlockingQueue<String> urlQueue = new LinkedBlockingQueue<>();
     private final Set<String> visitedUrls = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<String, AtomicInteger> labelCounts = new ConcurrentHashMap<>();
 
     private final AtomicInteger activeTasks = new AtomicInteger(0);
     private final AtomicInteger successfulPages = new AtomicInteger(0);
@@ -47,6 +48,10 @@ public class Orchestrator {
 
     public void incrementSuccessCount() {
         successfulPages.incrementAndGet();
+    }
+
+    public void incrementLabelCount(String label) {
+        labelCounts.computeIfAbsent(label, k -> new AtomicInteger(0)).incrementAndGet();
     }
 
     public void run() {
@@ -113,9 +118,36 @@ public class Orchestrator {
         System.out.println(Color.highlight("[ORCH] Tempo total de processamento: ") + durationSec + " segundos (" + durationMs + " ms).");
         System.out.println(Color.highlight("===========================================================================\n"));
 
-        // TODO: analise do processamento
+        displayLabelStatistics();
 
         System.out.println(Color.successMessage("[ORCH] Processo finalizado com sucesso."));
+    }
+
+    private void displayLabelStatistics() {
+        System.out.println(Color.header("--- ANÁLISE DE CONTEÚDO DAS PÁGINAS ---"));
+
+        int totalLabels = labelCounts.values().stream().mapToInt(AtomicInteger::get).sum();
+
+        if (totalLabels == 0) {
+            System.out.println(Color.warningMessage("Nenhuma página foi classificada."));
+            return;
+        }
+
+        System.out.println("+-----------------+------------+---------+");
+        System.out.println("| RÓTULO          | QUANTIDADE |    %    |");
+        System.out.println("+-----------------+------------+---------+");
+
+        labelCounts.entrySet().stream()
+                .sorted((e1, e2) -> Integer.compare(e2.getValue().get(), e1.getValue().get()))
+                .forEach(entry -> {
+                    String label = entry.getKey();
+                    int count = entry.getValue().get();
+                    double percentage = (count / (double) totalLabels) * 100;
+
+                    System.out.printf("| %-15s | %10d | %6.2f%% |\n", label, count, percentage);
+                });
+
+        System.out.println("+-----------------+------------+---------+\n");
     }
 
     public boolean isRunning() {

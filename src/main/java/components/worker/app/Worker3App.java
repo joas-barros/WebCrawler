@@ -10,6 +10,6 @@ public class Worker3App {
                 Ports.DATASERVER_HOST,
                 Ports.DATASERVER,
                 3,
-                "Worker-1");
+                "Worker-3");
     }
 }
