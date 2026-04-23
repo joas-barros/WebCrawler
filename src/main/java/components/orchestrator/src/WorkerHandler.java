@@ -97,14 +97,38 @@ public class WorkerHandler implements Runnable{
             return;
         }
 
-        String linksPart = parts[1].split("FROM")[0].trim();
-        String[] foundLinks = linksPart.split(",");
-        String id = response.split(" ")[0];
+        String workerId = response.split(" ")[0];
+        String[] fromParts = parts[1].split("FROM");
+        String linksPart = fromParts[0].trim();
+        String urlAndLabelPart = fromParts[1].trim();
 
-        System.out.println(Color.highlight("[ORCH] " + id + " encontrou links: ") + String.join(", ", foundLinks));
+        String label = extractLabel(urlAndLabelPart);
+        orchestrator.incrementLabelCount(label);
+
+        handleFoundLinks(linksPart, workerId, label);
+    }
+
+    private String extractLabel(String urlAndLabelPart) {
+        int bracketStart = urlAndLabelPart.indexOf('[');
+        int bracketEnd = urlAndLabelPart.indexOf(']');
+
+        if (bracketStart != -1 && bracketEnd != -1) {
+            return urlAndLabelPart.substring(bracketStart + 1, bracketEnd);
+        }
+
+        // Retorno padrão caso a página não tenha enviado o formato com colchetes
+        return "OUTROS";
+    }
+
+    private void handleFoundLinks(String linksPart, String workerId, String label) {
+        String[] foundLinks = linksPart.split(",");
+
+        System.out.println(Color.highlight("[ORCH] " + workerId + " encontrou links: ")
+                + String.join(", ", foundLinks) + " | Categoria: " + label);
 
         for (String link : foundLinks) {
             link = link.trim();
+
             if (!link.isEmpty() && visitedUrls.add(link)) {
                 System.out.println(Color.successMessage("[ORCH] Adicionando nova URL à fila: ") + link);
                 urlQueue.add(link);
